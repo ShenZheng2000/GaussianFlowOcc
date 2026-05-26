@@ -243,7 +243,7 @@ class NuScenesDataset(Custom3DDataset):
             sweeps=info['sweeps'],
             timestamp=info['timestamp'] / 1e6,
             lidar_idx=info['lidar_idx'],
-            panoptic_filename=info['panoptic_path'],
+            panoptic_filename=info.get('panoptic_path'),
             scene_name=info['scene_name'],
             # scene_token=info['scene_token']
         )
