@@ -89,7 +89,8 @@ def custom_single_gpu_test(model, data_loader, return_gaussians=False, **kwargs)
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
         with torch.no_grad():
-            result = model(return_loss=False, rescale=True, return_means=return_gaussians, **data)
+            # result = model(return_loss=False, rescale=True, return_means=return_gaussians, **data)
+            result = model(return_loss=False, rescale=True, return_means=return_gaussians, render_preds=True, **data)
         batch_size = len(result)
 
         results.extend(result)

@@ -117,6 +117,9 @@ class NuScenesDatasetOccpancy(NuScenesDataset):
 
         ## Save Occupancy ##
         if save_dir is not None:
+            print(f"[DEBUG] save_dir = {save_dir}")                              # 1. is save_dir set?
+            print(f"[DEBUG] num results = {len(occ_results)}")                   # 2. any results?
+            print(f"[DEBUG] result[0] keys = {list(occ_results[0].keys())}")             
             self.save_occupancy(occ_results, save_dir)
             self.save_render_results(occ_results, save_dir)
             self.save_gaussians(occ_results, save_dir)
@@ -129,23 +132,58 @@ class NuScenesDatasetOccpancy(NuScenesDataset):
         gc.collect()
         return eval_dict
 
+
+    # def save_render_results(self, results, out_path):
+    #     if 'rendered_depths' not in results[0].keys() or 'rendered_semantics' not in results[0].keys():
+    #         return
+    #     mmcv.mkdir_or_exist(osp.join(out_path, 'render'))
+    #     all_renders = {}
+    #     for index, output in enumerate(results):
+    #         if 'render_depth' not in output.keys() or 'render_semantics' not in output.keys():
+    #             continue
+    #         info = self.data_infos[index]
+    #         scene_name, token = info['scene_name'], info['token']
+    #         if scene_name not in all_renders.keys():
+    #             all_renders[scene_name] = {}
+    #         all_renders[scene_name][token] = np.stack((output['render_depth'] , output['render_semantics']))
+
+    #     for scene, preds in all_renders.items():
+    #         out_file_occ = osp.join(out_path, 'render', f'{scene}.npz')
+    #         np.savez_compressed(out_file_occ, **preds)
+
+    # NOTE: change the code to directly save png, not npz.
     def save_render_results(self, results, out_path):
+
+        print(f"[DEBUG] entered save_render_results, out_path={out_path}")   # 4. did we enter?
+        print(f"[DEBUG] keys = {list(results[0].keys())}")
+
         if 'rendered_depths' not in results[0].keys() or 'rendered_semantics' not in results[0].keys():
+            print("[DEBUG] EARLY RETURN — rendered keys missing")
             return
-        mmcv.mkdir_or_exist(osp.join(out_path, 'render'))
-        all_renders = {}
+
+        import matplotlib.pyplot as plt
+        out_dir = osp.join(out_path, 'render')
+        mmcv.mkdir_or_exist(out_dir)
         for index, output in enumerate(results):
-            if 'render_depth' not in output.keys() or 'render_semantics' not in output.keys():
+            if 'rendered_depths' not in output.keys() or 'rendered_semantics' not in output.keys():
                 continue
             info = self.data_infos[index]
             scene_name, token = info['scene_name'], info['token']
-            if scene_name not in all_renders.keys():
-                all_renders[scene_name] = {}
-            all_renders[scene_name][token] = np.stack((output['render_depth'] , output['render_semantics']))
+            mmcv.mkdir_or_exist(osp.join(out_dir, scene_name))
+            # save depth
+            depth = output['rendered_depths']  # [N_cams, H, W]
+            for cam_idx in range(depth.shape[0]):
+                plt.imsave(osp.join(out_dir, scene_name, f'{token}_depth_cam{cam_idx}.png'),
+                        depth[cam_idx], cmap='magma')
+            # save semantics
+            sem = output['rendered_semantics']  # [N_cams, H, W]
+            for cam_idx in range(sem.shape[0]):
+                plt.imsave(osp.join(out_dir, scene_name, f'{token}_sem_cam{cam_idx}.png'),
+                        sem[cam_idx])
 
-        for scene, preds in all_renders.items():
-            out_file_occ = osp.join(out_path, 'render', f'{scene}.npz')
-            np.savez_compressed(out_file_occ, **preds)
+            # TODO: use this for quick debug!
+            exit()
+
 
     def save_occupancy(self, results, out_path):
         mmcv.mkdir_or_exist(out_path)

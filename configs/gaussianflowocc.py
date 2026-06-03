@@ -138,6 +138,13 @@ val_pipeline = [
         bda_aug_conf=bda_aug_conf,
         classes=class_names,
         is_train=False),
+    dict(type='GaussianFlowOcc_GeneratePseudoLabelsHorizon',  # ADD
+         downscale_factor=raster_downscale_factor,
+         crop_top=raster_crop_top,
+         num_frames=num_frames,
+         grounded_sam_root=None,
+         depth_root=None,
+         temporal_frame_ids=temporal_frame_ids),
     dict(
         type='MultiScaleFlipAug3D',
         img_scale=(1333, 800),
@@ -148,7 +155,7 @@ val_pipeline = [
                 type='DefaultFormatBundle3D',
                 class_names=class_names,
                 with_label=False),
-            dict(type='Collect3D', keys=['img_inputs'])
+            dict(type='Collect3D', keys=['img_inputs', 'gs_intrins', 'gs_extrins'])  # ADD keys
         ])
 ]
 
