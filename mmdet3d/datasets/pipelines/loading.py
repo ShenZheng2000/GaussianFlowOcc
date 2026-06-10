@@ -1718,6 +1718,15 @@ class PrepareImageInputs(object):
 
     def __call__(self, results):
         results['img_inputs'] = self.get_inputs(results)
+        imgs, sensor2egos, ego2globals, ego_l2globals, cam2ego_lidars, intrins, post_rots, post_trans = results['img_inputs']
+        # expose gs_intrins/gs_extrins so the test pipeline can collect them for rendering
+        scaled_intrins = intrins.clone()
+        scaled_intrins[..., 0, 0] *= 0.44
+        scaled_intrins[..., 1, 1] *= 0.44
+        scaled_intrins[..., 0, 2] *= 0.44
+        scaled_intrins[..., 1, 2] = scaled_intrins[..., 1, 2] * 0.44 - 140
+        results['gs_intrins'] = scaled_intrins.unsqueeze(0) if scaled_intrins.dim() == 3 else scaled_intrins
+        results['gs_extrins'] = torch.inverse(cam2ego_lidars).unsqueeze(0) if cam2ego_lidars.dim() == 3 else torch.inverse(cam2ego_lidars)
         return results
 
 

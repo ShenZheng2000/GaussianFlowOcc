@@ -21,3 +21,7 @@ ulimit -n 65536
 
 # train with no temporal supervision
 # CUDA_VISIBLE_DEVICES=4,5,6,7 PORT=29766 bash tools/dist_train.sh configs/gaussianflowocc_no_temporal.py 4
+
+
+# visualization (save rendered results including depth, semantics, and rgb)
+# python tools/test.py configs/gaussianflowocc.py work_dirs/gaussianflowocc/epoch_18_ema.pth --eval mIoU --save-occ-path work_dirs/gaussianflowocc/vis

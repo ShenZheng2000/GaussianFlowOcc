@@ -81,7 +81,7 @@ def custom_multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False,
     results = collect_results_cpu(results, len(dataset), tmpdir)
     return results
 
-def custom_single_gpu_test(model, data_loader, return_gaussians=False, **kwargs):
+def custom_single_gpu_test(model, data_loader, return_gaussians=False, render_preds=False, **kwargs):
     """Custom test function that allows to store predicted embeddings for visualization purposes (only used during test.py)."""
     model.eval()
     results = []
@@ -89,7 +89,7 @@ def custom_single_gpu_test(model, data_loader, return_gaussians=False, **kwargs)
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
         with torch.no_grad():
-            result = model(return_loss=False, rescale=True, return_means=return_gaussians, **data)
+            result = model(return_loss=False, rescale=True, return_means=return_gaussians, render_preds=render_preds, **data)
         batch_size = len(result)
 
         results.extend(result)

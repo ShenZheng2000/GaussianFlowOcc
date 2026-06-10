@@ -259,7 +259,8 @@ def main():
 
     if not distributed:
         model = MMDataParallel(model, device_ids=cfg.gpu_ids)
-        outputs = custom_single_gpu_test(model, data_loader, return_gaussians=args.save_gaussians)
+        outputs = custom_single_gpu_test(model, data_loader, return_gaussians=args.save_gaussians,
+                                         render_preds=(args.save_occ_path is not None))
         # outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
     else:
         model = MMDistributedDataParallel(

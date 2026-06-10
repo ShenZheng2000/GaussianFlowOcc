@@ -130,22 +130,79 @@ class NuScenesDatasetOccpancy(NuScenesDataset):
         return eval_dict
 
     def save_render_results(self, results, out_path):
-        if 'rendered_depths' not in results[0].keys() or 'rendered_semantics' not in results[0].keys():
+        if 'rendered_depths' not in results[0]:
             return
-        mmcv.mkdir_or_exist(osp.join(out_path, 'render'))
-        all_renders = {}
+        import cv2
+        from matplotlib import cm
+
+        _cam_names = ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT',
+                      'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT']
+        render_dir = osp.join(out_path, 'render_images')
+        for cam in _cam_names:
+            mmcv.mkdir_or_exist(osp.join(render_dir, cam))
+
+        magma = cm.get_cmap('magma')
+
+        # standard nuScenes occupancy palette (Occ3D)
+        nusc_colors = np.array([
+            [0,   0,   0  ],  # 0  undefined
+            [255, 120, 50 ],  # 1  barrier
+            [255, 192, 203],  # 2  bicycle
+            [255, 255, 0  ],  # 3  bus
+            [0,   150, 245],  # 4  car
+            [0,   255, 255],  # 5  construction vehicle
+            [200, 180, 0  ],  # 6  motorcycle
+            [255, 0,   0  ],  # 7  pedestrian
+            [255, 240, 150],  # 8  traffic cone
+            [135, 60,  0  ],  # 9  trailer
+            [160, 32,  240],  # 10 truck
+            [255, 0,   255],  # 11 driveable surface
+            [139, 137, 137],  # 12 other flat
+            [75,  0,   75 ],  # 13 sidewalk
+            [150, 240, 80 ],  # 14 terrain
+            [230, 230, 250],  # 15 manmade
+            [0,   175, 0  ],  # 16 vegetation
+            [0,   0,   0  ],  # 17 free
+        ], dtype=np.uint8)
+
         for index, output in enumerate(results):
-            if 'render_depth' not in output.keys() or 'render_semantics' not in output.keys():
+            if 'rendered_depths' not in output:
                 continue
             info = self.data_infos[index]
-            scene_name, token = info['scene_name'], info['token']
-            if scene_name not in all_renders.keys():
-                all_renders[scene_name] = {}
-            all_renders[scene_name][token] = np.stack((output['render_depth'] , output['render_semantics']))
+            token = info['token']
+            depths = output['rendered_depths']    # [N_cams, H, W] float32
+            sems   = output['rendered_semantics'] # [N_cams, H, W] uint8
+            h, w = depths.shape[-2:]
 
-        for scene, preds in all_renders.items():
-            out_file_occ = osp.join(out_path, 'render', f'{scene}.npz')
-            np.savez_compressed(out_file_occ, **preds)
+            for cam_idx, cam_name in enumerate(_cam_names):
+                cam_dir = osp.join(render_dir, cam_name)
+
+                # depth: apply magma colormap over valid (>0) pixels
+                d = depths[cam_idx]
+                valid = d > 0
+                d_norm = np.zeros_like(d)
+                if valid.any():
+                    d_min, d_max = d[valid].min(), d[valid].max()
+                    d_norm[valid] = (d[valid] - d_min) / (d_max - d_min + 1e-6)
+                d_color = (magma(d_norm)[..., :3] * 255).astype(np.uint8)
+                cv2.imwrite(osp.join(cam_dir, f'{token}_depth.png'),
+                            cv2.cvtColor(d_color, cv2.COLOR_RGB2BGR))
+
+                # semantics: nuScenes standard palette
+                sem = sems[cam_idx].astype(np.int32)
+                sem_color = nusc_colors[np.clip(sem, 0, len(nusc_colors) - 1)]
+                cv2.imwrite(osp.join(cam_dir, f'{token}_sem.png'),
+                            cv2.cvtColor(sem_color, cv2.COLOR_RGB2BGR))
+
+                # rgb: resize then crop top 140px to match raster_crop_top
+                if cam_name in info.get('cams', {}):
+                    img = cv2.imread(info['cams'][cam_name]['data_path'])
+                    if img is not None:
+                        src_h, src_w = img.shape[:2]
+                        scale = w / src_w  # 704/1600 = 0.44
+                        img_resized = cv2.resize(img, (w, int(src_h * scale)))
+                        img_cropped = img_resized[140:140 + h, :]
+                        cv2.imwrite(osp.join(cam_dir, f'{token}_rgb.png'), img_cropped)
 
     def save_occupancy(self, results, out_path):
         mmcv.mkdir_or_exist(out_path)
